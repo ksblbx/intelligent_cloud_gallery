@@ -19,3 +19,14 @@ create table if not exists user
     UNIQUE KEY uk_userAccount (userAccount),
     INDEX idx_userName (userName)
 ) comment '用户' collate = utf8mb4_unicode_ci;
+
+-- 解决逻辑删除用户后重新注册时，用户名重复的问题
+
+-- 删除原有的唯一索引
+ALTER TABLE user
+    DROP INDEX uk_userAccount;
+
+-- 创建新的复合唯一索引，只对未删除的数据生效
+ALTER TABLE user
+    ADD UNIQUE INDEX uk_userAccount_not_deleted (userAccount, isDelete);
+
