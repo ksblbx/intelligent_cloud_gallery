@@ -2,6 +2,9 @@ server:
   port: 8123
   servlet:
     context-path: /api
+    session:
+      cookie:
+        max-age: 2592000
 spring:
   application:
     name: intelligent-cloud-gallery-backend
@@ -11,6 +14,23 @@ spring:
     url: jdbc:mysql://localhost:3306/lbx_cloud_gallery
     username: root
     password: 123456
+  # Redis配置
+  redis:
+    database: 0
+    host: 127.0.0.1
+    port: 6379
+    timeout: 5000
+  #session配置
+  session:
+    store-type: redis
+    # session 30天过期
+    timeout: 2592000
+  #    开发更大的文件上传体积
+  servlet:
+    multipart:
+      max-file-size: 10MB
+  profiles:
+    active: local
 mybatis-plus:
   configuration:
     # MyBatis 配置

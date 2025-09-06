@@ -221,6 +221,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                 sortOrder.equals("ascend"), sortField);
         return queryWrapper;
     }
+
+    @Override
+    public Boolean isAdmin(User user) {
+        return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
+    }
 }
 
 
