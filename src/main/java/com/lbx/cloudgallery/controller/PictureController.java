@@ -272,7 +272,7 @@ public class PictureController {
         if (pictureEditRequest == null || pictureEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        User loginUser = userService.getLoginUser();
+        User loginUser = userService.getLoginUser(request);
         pictureService.editPicture(pictureEditRequest, loginUser);
         return ResultUtils.success(true);
     }
