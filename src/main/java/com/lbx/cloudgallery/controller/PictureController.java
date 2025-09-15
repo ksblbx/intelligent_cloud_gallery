@@ -1,11 +1,17 @@
 package com.lbx.cloudgallery.controller;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.lbx.cloudgallery.annotation.AuthCheck;
+import com.lbx.cloudgallery.api.aliyunai.AliYunAiApi;
+import com.lbx.cloudgallery.api.aliyunai.model.CreateOutPaintingTaskResponse;
+import com.lbx.cloudgallery.api.aliyunai.model.GetOutPaintingTaskResponse;
+import com.lbx.cloudgallery.api.imagesearch.SoImageSearchApiFacade;
+import com.lbx.cloudgallery.api.imagesearch.model.SoImageSearchResult;
 import com.lbx.cloudgallery.common.BaseResponse;
 import com.lbx.cloudgallery.common.DeleteRequest;
 import com.lbx.cloudgallery.common.ResultUtils;
@@ -23,7 +29,9 @@ import com.lbx.cloudgallery.model.vo.PictureVO;
 import com.lbx.cloudgallery.service.PictureService;
 import com.lbx.cloudgallery.service.SpaceService;
 import com.lbx.cloudgallery.service.UserService;
+import com.lbx.cloudgallery.service.impl.UserServiceImpl;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.DigestUtils;
@@ -33,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +70,10 @@ public class PictureController {
             //缓存5min后移除
             .expireAfterWrite(Duration.ofMinutes(5))
             .build();
+    @Autowired
+    private UserServiceImpl userServiceImpl;
+    @Autowired
+    private AliYunAiApi aliYunAiApi;
 
     /**
      * 上传图片（可重新上传）
@@ -217,6 +230,7 @@ public class PictureController {
     /**
      * 分页获取图片列表（封装类,有缓存的）
      */
+    @Deprecated
     @PostMapping("/list/page/vo/cache")
     public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest,
                                                                       HttpServletRequest request) {
@@ -316,4 +330,76 @@ public class PictureController {
         return ResultUtils.success(uploadCount);
     }
 
+
+    /**
+     * 以图搜图
+     */
+    @PostMapping("/search/picture")
+    public BaseResponse<List<SoImageSearchResult>> searchPictureByPictureIsSo(@RequestBody SearchPictureByPictureRequest searchPictureByPictureRequest) {
+        ThrowUtils.throwIf(searchPictureByPictureRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = searchPictureByPictureRequest.getPictureId();
+        ThrowUtils.throwIf(pictureId == null || pictureId <= 0, ErrorCode.PARAMS_ERROR);
+        Picture oldPicture = pictureService.getById(pictureId);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        List<SoImageSearchResult> resultList = new ArrayList<>();
+        // 这个 start 是控制查询多少页, 每页是 20 条
+        int start = 0;
+        while (resultList.size() <= 50) {
+            List<SoImageSearchResult> tempList = SoImageSearchApiFacade.searchImage(
+                    StrUtil.isNotBlank(oldPicture.getUrl()) ? oldPicture.getUrl() : oldPicture.getThumbnailUrl(),
+                    start
+            );
+            if (tempList.isEmpty()) {
+                break;
+            }
+            resultList.addAll(tempList);
+            start += tempList.size();
+        }
+        return ResultUtils.success(resultList);
+    }
+
+    @PostMapping("/search/color")
+    public BaseResponse<List<PictureVO>> searchPictureByColor(@RequestBody SearchPictureByColorRequest searchPictureByColorRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(searchPictureByColorRequest == null, ErrorCode.PARAMS_ERROR);
+        Long spaceId = searchPictureByColorRequest.getSpaceId();
+        String picColor = searchPictureByColorRequest.getPicColor();
+        User loginUser = userService.getLoginUser(request);
+        List<PictureVO> pictureVOList = pictureService.searchPictureByColor(spaceId, picColor, loginUser);
+        return ResultUtils.success(pictureVOList);
+    }
+
+    /**
+     * 批量编辑图片
+     */
+    @PostMapping("/edit/batch")
+    public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest,
+                                                    HttpServletRequest request) {
+        ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 创建AI扩图任务
+     */
+    @PostMapping("/out_painting/create_task")
+    public BaseResponse<CreateOutPaintingTaskResponse> createOutPaintingTask(@RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(createPictureOutPaintingTaskRequest == null || createPictureOutPaintingTaskRequest.getPictureId() == null,
+                ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        CreateOutPaintingTaskResponse res = pictureService.createOutPaintingTask(createPictureOutPaintingTaskRequest,
+                loginUser);
+        return ResultUtils.success(res);
+    }
+
+    /**
+     * 获取AI扩图任务状态
+     */
+    @GetMapping("/out_painting/get_task")
+    public BaseResponse<GetOutPaintingTaskResponse> getPictureOutPaintingTask(String taskId) {
+        ThrowUtils.throwIf(taskId == null, ErrorCode.PARAMS_ERROR);
+        GetOutPaintingTaskResponse task = aliYunAiApi.getOutPaintingTask(taskId);
+        return ResultUtils.success(task);
+    }
 }

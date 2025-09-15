@@ -3,12 +3,14 @@ package com.lbx.cloudgallery.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.lbx.cloudgallery.api.aliyunai.model.CreateOutPaintingTaskResponse;
 import com.lbx.cloudgallery.model.dto.picture.*;
 import com.lbx.cloudgallery.model.entity.Picture;
 import com.lbx.cloudgallery.model.entity.User;
 import com.lbx.cloudgallery.model.vo.PictureVO;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 
 public interface PictureService extends IService<Picture> {
@@ -112,4 +114,30 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser
      */
     void checkPictureAuth(Picture picture, User loginUser);
+
+
+    /**
+     * 根据颜色搜索图片
+     *
+     * @param spaceId
+     * @param color
+     * @param loginUser
+     * @return
+     */
+    List<PictureVO> searchPictureByColor(Long spaceId, String color, User loginUser);
+
+    /**
+     * @param pictureEditByBatchRequest
+     * @param loginUser
+     */
+    void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
+
+    /**
+     * 创建扩图任务
+     *
+     * @param createPictureOutPaintingTaskRequest
+     * @param loginUser
+     * @return
+     */
+    CreateOutPaintingTaskResponse createOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
 }

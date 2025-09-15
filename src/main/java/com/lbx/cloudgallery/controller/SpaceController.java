@@ -9,12 +9,10 @@ import com.lbx.cloudgallery.constant.UserConstant;
 import com.lbx.cloudgallery.exception.BusinessException;
 import com.lbx.cloudgallery.exception.ErrorCode;
 import com.lbx.cloudgallery.exception.ThrowUtils;
-import com.lbx.cloudgallery.model.dto.space.SpaceAddRequest;
-import com.lbx.cloudgallery.model.dto.space.SpaceEditRequest;
-import com.lbx.cloudgallery.model.dto.space.SpaceQueryRequest;
-import com.lbx.cloudgallery.model.dto.space.SpaceUpdateRequest;
+import com.lbx.cloudgallery.model.dto.space.*;
 import com.lbx.cloudgallery.model.entity.Space;
 import com.lbx.cloudgallery.model.entity.User;
+import com.lbx.cloudgallery.model.enums.SpaceLevelEnum;
 import com.lbx.cloudgallery.model.vo.SpaceVO;
 import com.lbx.cloudgallery.service.SpaceService;
 import com.lbx.cloudgallery.service.UserService;
@@ -23,7 +21,10 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/space")
@@ -59,9 +60,7 @@ public class SpaceController {
         Space oldSpace = spaceService.getById(id);
         ThrowUtils.throwIf(oldSpace == null, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可删除
-        if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
+        spaceService.checkSpaceAuth(oldSpace, loginUser);
         // 操作数据库
         boolean result = spaceService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -179,13 +178,25 @@ public class SpaceController {
         Space oldSpace = spaceService.getById(id);
         ThrowUtils.throwIf(oldSpace == null, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可编辑
-        if (!oldSpace.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
+        spaceService.checkSpaceAuth(oldSpace, loginUser);
         // 操作数据库
         boolean result = spaceService.updateById(space);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
 
+    /**
+     * 获取空间等级列表 便于前端展示
+     */
+    @GetMapping("/list/level")
+    public BaseResponse<List<SpaceLevel>> listSpaceLevel() {
+        List<SpaceLevel> spaceLevelList = Arrays.stream(SpaceLevelEnum.values())
+                .map(spaceEnum -> new SpaceLevel(
+                        spaceEnum.getValue(),
+                        spaceEnum.getText(),
+                        spaceEnum.getMaxCount(),
+                        spaceEnum.getMaxSize()))
+                .collect(Collectors.toList());
+        return ResultUtils.success(spaceLevelList);
+    }
 }

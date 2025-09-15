@@ -63,7 +63,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
         //3、校验权限，非管理员只能创建普通级别的空间
         Long userId = loginUser.getId();
         space.setUserId(userId);
-        if (SpaceLevelEnum.COMMON.getValue() != space.getSpaceLevel() && !userService.isAdmin(loginUser)) {
+        if (SpaceLevelEnum.COMMON.getValue() != spaceAddRequest.getSpaceLevel() && !userService.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限创建指定级别的空间");
         }
         //4、控制同一用户只能创建一个私有空间
@@ -178,6 +178,13 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
             if (space.getMaxCount() == null) {
                 space.setMaxCount(maxCount);
             }
+        }
+    }
+
+    @Override
+    public void checkSpaceAuth(Space space, User loginUser) {
+        if (!space.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
     }
 }
