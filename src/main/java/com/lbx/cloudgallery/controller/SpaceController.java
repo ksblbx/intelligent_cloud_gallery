@@ -9,6 +9,7 @@ import com.lbx.cloudgallery.constant.UserConstant;
 import com.lbx.cloudgallery.exception.BusinessException;
 import com.lbx.cloudgallery.exception.ErrorCode;
 import com.lbx.cloudgallery.exception.ThrowUtils;
+import com.lbx.cloudgallery.manager.auth.SpaceUserAuthManager;
 import com.lbx.cloudgallery.model.dto.space.*;
 import com.lbx.cloudgallery.model.entity.Space;
 import com.lbx.cloudgallery.model.entity.User;
@@ -34,6 +35,9 @@ public class SpaceController {
 
     @Resource
     private SpaceService spaceService;
+
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     /**
      * 添加空间
@@ -119,7 +123,11 @@ public class SpaceController {
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
         // 获取封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
+        return ResultUtils.success(spaceVO);
     }
 
     /**

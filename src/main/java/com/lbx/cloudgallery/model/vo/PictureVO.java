@@ -6,6 +6,7 @@ import com.lbx.cloudgallery.model.entity.Picture;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -106,6 +107,12 @@ public class PictureVO implements Serializable {
      * 创建用户信息
      */
     private UserVO user;
+
+
+    /**
+     * 权限列表
+     */
+    private List<String> permissionList = new ArrayList<>();
 
     private static final long serialVersionUID = -290709469123774687L;
 
